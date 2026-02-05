@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generátor účtovných pravidiel - ERP APplus</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 950px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; }
+        
+        .header-area { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; }
+        .logo-appluso { max-height: 50px; }
+        
+        h2, h3 { color: #007bff; margin-top: 0; }
+        h4 { margin: 10px 0; color: #444; }
+        
+        .section { margin-bottom: 25px; padding: 15px; border: 1px solid #e1e4e8; border-radius: 8px; }
+        .section-main { border-left: 5px solid #007bff; }
+        .section-nested { border-color: #28a745; background-color: #f8fff9; }
+        .section-global { border-color: #6f42c1; background-color: #fcfaff; }
+        
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-info { background-color: #17a2b8; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-warning { background-color: #ffc107; color: #212529; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85em; background: white; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; }
+        
+        #review-area { background: #272822; color: #f8f8f2; padding: 20px; border-radius: 8px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; display: none; margin-top: 20px; }
+        .actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        
+        .checkbox-container { margin: 10px 0; display: flex; align-items: center; gap: 10px; background: #e9ecef; padding: 10px; border-radius: 5px; width: fit-content; }
+        .checkbox-container input { width: auto; }
+        
+        .copyright { margin-top: 30px; text-align: center; font-size: 0.85em; color: #777; border-top: 1px solid #eee; padding-top: 15px; }
+        .nested-indicator { color: #28a745; font-weight: bold; font-size: 0.8em; }
+        
+        .required-field {
+        border: 2px solid #dc3545 !important;
+        background-color: #fff5f5;
+        position: relative;
+        }
+
+        .required-field:valid {
+        border-color: #28a745 !important;
+        background-color: #f8fff8;
+        }
+
+        .required-field:focus:invalid {
+        box-shadow: 0 0 5px rgba(220, 53, 69, 0.5);
+        }
+       
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-area">
+        <h2>Konfigurátor kontačných pravidiel v ERP APplus</h2>
+        <img src="https://www.applus-erp.de/wp-content/uploads/2023/03/applus-logo-orange-200px.png.webp" alt="APplus Logo" class="logo-appluso">
+    </div>
+
+    <!-- 1. Mapovanie -->
+    <div class="section" id="mapping-section">
+        <h3>1. Mapovanie na databázu</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+                <label>Premenná (wert):</label>
+                <input type="text" id="varName" placeholder="napr. miesto" oninput="updateVariableLabels()" class="required-field" required>
+            </div>
+            <div class="form-group">
+                <label class="required-label">Pred. premenná (ziel):</label>
+                <input type="text" id="prevVarName" placeholder="napr. sklad" oninput="updateVariableLabels()" class="required-field" required>
+            </div>
+            <div class="form-group">
+                <label>DB tabuľka:</label>
+                <input type="text" id="dbTable" placeholder="LAGERBEWEGUNG">
+            </div>            
+            <div class="form-group">
+                <label>Stĺpec z DB = Príznak:</label>
+                <input type="text" id="dbColumn" placeholder="NEULAGER">
+            </div>            
+            <div style="display: flex; align-items: center; gap: 5px; padding-top: 25px;">
+                <input type="checkbox" id="transform-check">
+                <label>Zakázať transformáciu</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Hlavné podmienky -->
+    <div class="section section-main">
+        <h3>2. Hlavné podmienky (If / Else If)</h3>
+        <!-- Presunuté zobrazenie Aktivovania vnorenej podmienky -->
+        <div class="checkbox-container">
+                <input type="checkbox" id="useNestedCheck" onclick="toggleNestedBuilder()">
+                <label for="useNestedCheck"><strong>Aktivovať vnorené podmienky (Sekcia 2.1) pre toto pravidlo</strong></label>
+        </div>
+
+        <!-- Sekcia 2.1 Vnorené pravidlá (dočasný buffer) -->
+        <div id="nested-builder-area" class="section section-nested" style="display:none; margin-bottom: 15px;">
+            <h4>2.1 Definícia vnorenej podmienky</h4>
+            <p style="font-size: 0.8em; color: #555;">Tieto podmienky sa vyhodnotia len vtedy, ak platí hlavná podmienka nižšie.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; align-items: flex-end;">
+                <div class="form-group">
+                    <label>Vnorená Premenná:</label>
+                    <select id="nestedStepVar" class="var-select">
+                        <option value="wert" class="opt-wert">wert</option>
+                        <option value="ziel" class="opt-ziel">ziel</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Operátor:</label>
+                    <select id="nestedStepOp">
+                        <option value="1">==</option>
+                        <option value="2">!=</option>
+                        <option value="9">obsahuje</option>
+                        <option value="12">v zozname</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Porovnávaná Hodnota:</label>
+                    <input type="text" id="nestedStepValue" placeholder="napr. účtovný druh" class="required-field" required>
+                </div>
+                <div class="form-group">
+                    <label>Výsledný vnorený účet:</label>
+                    <input type="text" id="nestedStepResult" placeholder="napr. účet 112200" class="required-field" required>
+                </div>
+            </div>
+            <!-- Náhradná hodnota (fallback) vnorenej podmienky -->            
+            <div class="form-group" style="flex-basis: 100%; max-width: 440px;">
+                <label>Náhradná hodnota vnorenej podmienky (fallback):</label>
+                <input type="text" id="nestedFallbackValue" placeholder="text chyby vnorenej podmienky" title="Tu zadajte text (max. 10 znakov), ktorý bude výsledkom namiesto Výsledného vnoreného účtu, ak nebude splnená žiadna z vnorených podmienok v hlanvej podmienke.">
+            </div>
+            
+            <button class="btn btn-success" onclick="addToNestedBuffer(); document.getElementById('nestedStepValue').focus();">+ Pridať podriadenú podmienku do hlavnej podmienky</button>
+            <table id="nestedBufferTable">
+                <thead><tr><th>Vnorená Premenná</th><th>Operátor</th><th>Hodnota</th><th>Výsledok</th><th>Akcia</th></tr></thead>
+                <tbody id="nestedBufferBody"></tbody>
+            </table>
+        </div>
+
+        <div id="step-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Hlavná premenná <br>na porovnanie:</label>
+                    <select id="stepVar" class="var-select">
+                        <option value="wert" class="opt-wert">wert</option>
+                        <option value="ziel" class="opt-ziel">ziel</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><br>Operátor:</label>
+                    <select id="stepOp">
+                        <option value="1">1: rovná sa (==)</option>
+                        <option value="2">2: nerovná sa (!=)</option>
+                        <option value="9">9: obsahuje</option>
+                        <option value="10">10: začína na</option>
+                        <option value="12">12: v zozname</option>
+                    </select>                    
+                </div>
+                
+                <div class="form-group">
+                    <label>Porovnávaná <br>hodnota:</label>
+                    <input type="text" id="stepValue" placeholder="napr. sklad TOVARY" class="required-field" required>
+                </div>
+
+                <div id="main-result-group" class="form-group">
+                    <label>Výsledný účet <br>(ak je splnené):</label>
+                    <input type="text" id="stepResult" placeholder="napr. účet 112100" class="required-field" required>
+                </div>
+
+            </div>
+            <button class="btn btn-primary" onclick="addRuleStep(); document.getElementById('stepValue').focus();">Pridať hlavnú podmienku</button>
+        </div>
+
+        <table id="stepsTable">
+            <thead>
+                <tr>
+                    <th>Hlavná podmienka</th>
+                    <th>Logika</th>
+                    <th>Výsledok / Vnorenie</th>
+                    <th>Akcia</th>
+                </tr>
+            </thead>
+            <tbody id="stepsBody"></tbody>
+        </table>
+    </div>
+
+    <!-- 3. Globálne podmienky -->
+    <div class="section section-global">
+        <h3>3. Globálne dodatočné podmienky (Fallback)</h3>
+        <p style="font-size: 0.85em; color: #666;">Tieto sa vyhodnotia, ak nebola splnená žiadna z hlavných podmienok vyššie.</p>
+        <div class="checkbox-container">
+            <input type="checkbox" id="toggleGlobal" onclick="toggleGlobalSection()">
+            <label for="toggleGlobal">Aktivovať globálne podmienky</label>
+        </div>
+        
+        <div id="globalSection" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; align-items: flex-end;">
+                <div class="form-group">
+                    <label>Premenná:</label>
+                    <select id="globalStepVar" class="var-select">
+                        <option value="wert" class="opt-wert">wert</option>
+                        <option value="ziel" class="opt-ziel">ziel</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Operátor:</label>
+                    <select id="globalStepOp">
+                        <option value="1">==</option>
+                        <option value="2">!=</option>
+                        <option value="12">v zozname</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Porovnávaná hodnota:</label>
+                    <input type="text" id="globalStepValue" placeholder="napr. iné" class="required-field" required>
+                </div>
+                <div class="form-group">
+                    <label>Výsledný účet:</label>
+                    <input type="text" id="globalStepResult" placeholder="napr. účet 112900" class="required-field" required>
+                </div>
+            </div>
+            <button class="btn btn-warning" onclick="addGlobalStep(); document.getElementById('globalStepValue').focus();">Pridať globálnu podmienku</button>
+            <table id="globalStepsTable">
+                <thead><tr><th>Premenná</th><th>Operátor</th><th>Hodnota</th><th>Výsledný účet</th><th>Akcia</th></tr></thead>
+                <tbody id="globalStepsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="actions">
+        <div style="flex-basis: 100%; max-width: 300px;">
+            <label>Náhradná hodnota (úplný fallback):</label>
+            <input type="text" id="fallbackValue" placeholder="chyba" title="Tu zadajte text (max 10 znakov), ktorý bude výsledným účtom, ak nebude splnená žiadna z hlavných podmienok.">
+        </div>
+        <button class="btn btn-success" onclick="finalizeScript()">Vygenerovať a skontrolovať skript</button>
+        <button class="btn btn-danger" onclick="resetAll()">Reset</button>
+    </div>
+
+    <!-- Review Area -->
+    <div id="review-area">
+        <h3 style="color: #a6e22e;">Kontrola vygenerovaného kódu:</h3>
+        <pre id="script-preview"></pre>
+        <div class="actions">
+            <button class="btn btn-success" onclick="copyToClipboard()">Skopírovať kód</button>
+            <button class="btn btn-info" onclick="exportToTxt()">Exportovať .txt</button>
+            <button class="btn btn-danger" onclick="document.getElementById('review-area').style.display='none'">Zavrieť</button>
+            <button class="btn btn-secondary" onclick="formatReview()">📝 Formátovať</button>
+        </div>
+    </div>
+
+    <div class="copyright">
+        &copy; 2025 | Autor: Ing. Jozef Kubus | Verzia 2.0 (Vnorené podmienky)
+    </div>
+</div>
+
+<script>
+    let ruleSteps = []; // Hlavné podmienky
+    let nestedBuffer = []; // Dočasné vnorené podmienky pre aktuálne vytváranú hlavnú
+    let globalSteps = []; // Globálne podmienky (sekcia 3)
+
+    const operatorLabels = { "1": "==", "2": "!=", "3": ">", "4": ">=", "9": "obsahuje", "10": "začína na", "12": "v zozname" };
+
+    function toggleNestedBuilder() {
+        const isNested = document.getElementById('useNestedCheck').checked;
+        document.getElementById('nested-builder-area').style.display = isNested ? 'block' : 'none';
+        document.getElementById('main-result-group').style.display = isNested ? 'none' : 'block';
+    }
+
+    function toggleGlobalSection() {
+        document.getElementById('globalSection').style.display = document.getElementById('toggleGlobal').checked ? 'block' : 'none';
+    }
+
+    function updateVariableLabels() {
+        const w = document.getElementById('varName').value || "miesto";
+        const z = document.getElementById('prevVarName').value || "sklad";
+        document.querySelectorAll('.opt-wert').forEach(o => o.textContent = `${w} (wert)`);
+        document.querySelectorAll('.opt-ziel').forEach(o => o.textContent = `${z} (ziel)`);
+    }
+
+    function addToNestedBuffer() {
+        const step = {
+            variable: document.getElementById('nestedStepVar').value,
+            operator: document.getElementById('nestedStepOp').value,
+            compareValue: document.getElementById('nestedStepValue').value,
+            resultValue: document.getElementById('nestedStepResult').value
+        };
+        if (!step.compareValue || !step.resultValue) return alert("Vyplňte hodnotu a výsledok.");
+        nestedBuffer.push(step);
+        renderNestedBuffer();
+        document.getElementById('nestedStepValue').value = "";
+        document.getElementById('nestedStepResult').value = "";
+    }
+
+    function renderNestedBuffer() {
+        const body = document.getElementById('nestedBufferBody');
+        body.innerHTML = "";
+        nestedBuffer.forEach((s, i) => {
+            body.innerHTML += `<tr><td>${s.variable}</td><td>${operatorLabels[s.operator]}</td><td>${s.compareValue}</td><td>${s.resultValue}</td><td><button onclick="nestedBuffer.splice(${i},1);renderNestedBuffer()">X</button></td></tr>`;
+        });
+    }
+
+    function addRuleStep() {
+        const isNested = document.getElementById('useNestedCheck').checked;
+        const step = {
+            variable: document.getElementById('stepVar').value,
+            operator: document.getElementById('stepOp').value,
+            compareValue: document.getElementById('stepValue').value,
+            resultValue: isNested ? null : document.getElementById('stepResult').value,
+            nestedRules: isNested ? [...nestedBuffer] : null
+        };
+
+        if (!step.compareValue || (!isNested && !step.resultValue)) return alert("Vyplňte chýbajúce údaje v červenom.");
+        if (isNested && nestedBuffer.length === 0) return alert("Pridajte aspoň jednu vnorenú podmienku (2.1).");
+
+        ruleSteps.push(step);
+        
+        // Reset formulára
+        nestedBuffer = [];
+        renderNestedBuffer();
+        document.getElementById('useNestedCheck').checked = false;
+        toggleNestedBuilder();
+        document.getElementById('stepValue').value = "";
+        document.getElementById('stepResult').value = "";
+        renderMainTable();
+    }
+
+    function renderMainTable() {
+        const body = document.getElementById('stepsBody');      
+        body.innerHTML = "";
+        ruleSteps.forEach((s, i) => {
+            const res = s.nestedRules ? `<span class="nested-indicator">Vnorené (${s.nestedRules.length} pravidiel)</span>` : s.resultValue;
+            body.innerHTML += `<tr>
+                <td>${s.variable} ${operatorLabels[s.operator]} ${s.compareValue}</td>
+                <td>${s.nestedRules ? 'VNORENE' : 'FIX'}</td>
+                <td>${res}</td>
+                <td><button class="btn btn-danger" onclick="ruleSteps.splice(${i},1);renderMainTable()">X</button></td>
+            </tr>`;
+        });
+    }
+
+    function addGlobalStep() {
+        const s = {
+            variable: document.getElementById('globalStepVar').value,
+            operator: document.getElementById('globalStepOp').value,
+            compareValue: document.getElementById('globalStepValue').value,
+            resultValue: document.getElementById('globalStepResult').value
+        };
+        if (!s.compareValue || !s.resultValue) return alert("Vyplňte údaje.");
+        globalSteps.push(s);
+        renderGlobalTable();
+    }
+
+    function renderGlobalTable() {        
+        const varName = document.getElementById('varName').value || "miesto";
+        const prevVarName = document.getElementById('prevVarName').value || "sklad";
+        const body = document.getElementById('globalStepsBody');
+        body.innerHTML = "";
+        globalSteps.forEach((s, i) => {
+            body.innerHTML += `<tr>
+                <td>${s.variable}</td>
+                <td>${operatorLabels[s.operator]}</td>
+                <td>${s.compareValue}</td>
+                <td>${s.resultValue}</td>
+                <td><button onclick="globalSteps.splice(${i},1);renderGlobalTable()">X</button></td>
+            </tr>`;
+        });
+    }
+
+    function buildCondition(s, varName, prevVarName) {
+        let val = s.compareValue.trim().toLowerCase();
+        let targetVar = (s.variable === 'wert') ? varName : prevVarName;
+        const skipTransform = document.getElementById('transform-check').checked;
+        let v = skipTransform ? targetVar : `${targetVar}.toString().trim().toLowerCase()`;
+
+        switch(s.operator) {
+            case '1': return `${v} == '${val}'`;
+            case '2': return `${v} !== '${val}'`;
+            case '9': return `${v}.includes('${val}')`;
+            case '12': return `['${val.split(',').join("','")}'].includes(${v})`;
+            default: return `${v} == '${val}'`;
+        }
+    }
+
+    function finalizeScript() {
+        const varName = document.getElementById('varName').value || "miesto";
+        const prevVarName = document.getElementById('prevVarName').value || "sklad";
+        const fallback = document.getElementById('fallbackValue').value || "chyba";
+        const nestedFallback = document.getElementById('nestedFallbackValue').value || "chybaV";
+        const dbTable = document.getElementById('dbTable').value || "Nezadali ste DB tabuľku";
+        const dbColumn = document.getElementById('dbColumn').value || "Nezadali ste Stĺpec z DB";
+        
+        let js = `// ERP APplus Účtovné pravidlo\n`;
+        js += `// Tabuľka: ${dbTable}, Príznak: ${dbColumn}\n`;
+        js += `var ${varName} = wert;\nvar ${prevVarName} = ziel;\n\n`;
+
+        ruleSteps.forEach((step, idx) => {
+            let cond = buildCondition(step, varName, prevVarName);
+            js += (idx === 0) ? `if (${cond}) {\n` : ` else if (${cond}) {\n`;
+            
+            if (step.nestedRules) {
+                step.nestedRules.forEach((ns, nidx) => {
+                    let ncond = buildCondition(ns, varName, prevVarName);
+                    js += (nidx === 0) ? `  if (${ncond}) {\n` : `  else if (${ncond}) {\n`;
+                    js += `    ziel = '${ns.resultValue}';\n }`;                
+                });              
+                js += `\n else {\n ziel = '${nestedFallback}';\n} \n return ziel;\n}`;
+            } else {
+                js += `  ziel = '${step.resultValue}';\n}`;
+            }
+        });
+
+        // Globálne podmienky (Sekcia 3)
+        if (globalSteps.length > 0) {
+            js += ` else {\n  // Globálne podmienky (Sekcia 3)\n`;
+            globalSteps.forEach((gs, gidx) => {
+                let gcond = buildCondition(gs, varName, prevVarName);
+                js += (gidx === 0) ? `  if (${gcond}) {\n` : `  else if (${gcond}) {\n`;
+                js += `    ziel = '${gs.resultValue}';\n  }`;
+            });
+            js += ` else {\n    ziel = '${fallback}';\n  }\n}`;
+        } else if (ruleSteps.length > 0) {
+            js += ` else {\n  ziel = '${fallback}';\n}`;
+        }
+
+        js += `\n\nreturn ziel;`;
+        document.getElementById('script-preview').textContent = js;
+        document.getElementById('review-area').style.display = 'block';
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function copyToClipboard() {
+        navigator.clipboard.writeText(document.getElementById('script-preview').innerText);
+        alert("Skopírované!");
+    }
+
+    function exportToTxt() {
+        const blob = new Blob([document.getElementById('script-preview').innerText], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'applus_pravidlo.txt';
+        a.click();
+    }
+
+    function formatReview() {
+    const preview = document.getElementById('script-preview');
+    preview.textContent = formatJS(preview.textContent);
+    }
+
+    function formatJS(code) {
+    return js_beautify(code, {
+        indent_size: 2,
+        space_in_empty_paren: true
+    });
+    }
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.11/beautify.min.js"></script>
+
+
+</body>
+</html>
