@@ -1,0 +1,1 @@
+účtovanie v AP
