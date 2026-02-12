@@ -74,7 +74,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 15px;">
             <div class="form-group">
                 <label>Premenná (wert):</label>
-                <input type="text" id="varName" placeholder="napr. miesto" oninput="updateVariableLabels()" class="required-field" required>
+                <input type<="text" id="varName" placeholder="napr. miesto" oninput="updateVariableLabels()" class="required-field" required>
             </div>
             <div class="form-group">
                 <label class="required-label">Pred. premenná (ziel):</label>
@@ -119,10 +119,17 @@
                 <div class="form-group">
                     <label>Operátor:</label>
                     <select id="nestedStepOp">
-                        <option value="1">==</option>
-                        <option value="2">!=</option>
-                        <option value="9">obsahuje</option>
-                        <option value="12">v zozname</option>
+                        <option value="1">1: rovná sa (==)</option>
+                        <option value="2">2: nerovná sa (!=)</option>
+                        <option value="3">3: menší ako ('<')</option>
+                        <option value="4">4: menší/rovný ako (<=)</option>
+                        <option value="5">5: väčší ako (>)</option>
+                        <option value="6">6: väčší/rovný ako (>=)</option>
+                        <option value="9">9: obsahuje</option>
+                        <option value="10">10: neobsahuje</option>
+                        <option value="11">11: začína na</option>
+                        <option value="12">12: končí na</option>
+                        <option value="13">13: je v zozname</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -161,9 +168,15 @@
                     <select id="stepOp">
                         <option value="1">1: rovná sa (==)</option>
                         <option value="2">2: nerovná sa (!=)</option>
+                        <option value="3">3: menší ako ('<')</option>
+                        <option value="4">4: menší/rovný ako (<=)</option>
+                        <option value="5">5: väčší ako (>)</option>
+                        <option value="6">6: väčší/rovný ako (>=)</option>
                         <option value="9">9: obsahuje</option>
-                        <option value="10">10: začína na</option>
-                        <option value="12">12: v zozname</option>
+                        <option value="10">10: neobsahuje</option>
+                        <option value="11">11: začína na</option>
+                        <option value="12">12: končí na</option>
+                        <option value="13">13: je v zozname</option>
                     </select>                    
                 </div>
                 
@@ -215,9 +228,17 @@
                 <div class="form-group">
                     <label>Operátor:</label>
                     <select id="globalStepOp">
-                        <option value="1">==</option>
-                        <option value="2">!=</option>
-                        <option value="12">v zozname</option>
+                        <option value="1">1: rovná sa (==)</option>
+                        <option value="2">2: nerovná sa (!=)</option>
+                        <option value="3">3: menší ako ('<')</option>
+                        <option value="4">4: menší/rovný ako (<=)</option>
+                        <option value="5">5: väčší ako (>)</option>
+                        <option value="6">6: väčší/rovný ako (>=)</option>
+                        <option value="9">9: obsahuje</option>
+                        <option value="10">10: neobsahuje</option>
+                        <option value="11">11: začína na</option>
+                        <option value="12">12: končí na</option>
+                        <option value="13">13: je v zozname</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -268,7 +289,7 @@
     let nestedBuffer = []; // Dočasné vnorené podmienky pre aktuálne vytváranú hlavnú
     let globalSteps = []; // Globálne podmienky (sekcia 3)
 
-    const operatorLabels = { "1": "==", "2": "!=", "3": ">", "4": ">=", "9": "obsahuje", "10": "začína na", "12": "v zozname" };
+    const operatorLabels = { "1": "==", "2": "!=", "3": "<", "4": "<=", "5": ">", "6": ">=", "9": "obsahuje", "10": "neobsahuje", "11": "začína", "12": "končí", "13": "je v zozname" };
 
     function toggleNestedBuilder() {
         const isNested = document.getElementById('useNestedCheck').checked;
@@ -376,6 +397,7 @@
         });
     }
 
+    /*
     function buildCondition(s, varName, prevVarName) {
         let val = s.compareValue.trim().toLowerCase();
         let targetVar = (s.variable === 'wert') ? varName : prevVarName;
@@ -385,11 +407,39 @@
         switch(s.operator) {
             case '1': return `${v} == '${val}'`;
             case '2': return `${v} !== '${val}'`;
+            case '3': return `${v} < '${val}'`;
+            case '4': return `${v} > '${val}'`;
             case '9': return `${v}.includes('${val}')`;
             case '12': return `['${val.split(',').join("','")}'].includes(${v})`;
             default: return `${v} == '${val}'`;
         }
     }
+    */
+    function buildCondition(s, varName, prevVarName) {
+        let val = s.compareValue.trim().toLowerCase();
+        let targetVar = (s.variable === 'wert') ? varName : prevVarName;
+        const skipTransform = document.getElementById('transform-check').checked;
+        let v = skipTransform ? targetVar : `${targetVar}.toString().trim().toLowerCase()`;
+
+        // Escape apostrofov v val pre bezpečnosť
+        let escapedVal = val.replace(/'/g, "\\'");
+
+        switch(s.operator) {
+            case '1': return `${v} == '${escapedVal}'`;
+            case '2': return `${v} !== '${escapedVal}'`;
+            case '3': return `${v} < '${escapedVal}'`;
+            case '4': return `${v} <= '${escapedVal}'`;         // menší/rovný (nové)
+            case '5': return `${v} > '${escapedVal}'`;
+            case '6': return `${v} >= '${escapedVal}'`;         // väčší/rovný (nové)
+            case '9': return `${v}.includes('${escapedVal}')`;  // obsahuje
+            case '10': return `!${v}.includes('${escapedVal}')`; // neobsahuje (nové)
+            case '11': return `${v}.startsWith('${escapedVal}')`; // začína (nové)
+            case '12': return `${v}.endsWith('${escapedVal}')`;  // končí (nové)            
+            case '13': return `['${escapedVal.split(',').join("','")}'].includes(${v})`;            
+            default: return `${v} == '${escapedVal}'`;
+        }
+    }
+
 
     function finalizeScript() {
         const varName = document.getElementById('varName').value || "miesto";
